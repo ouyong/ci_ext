@@ -2,25 +2,9 @@
 
 namespace ci_ext\db;
 
-use ci_ext\utils\VarDumper;
-
 use ci_ext\core\Exception;
 use ci_ext\events\Event;
 use ci_ext\validators\Validator;
-/**
- * TableRecord
- * <pre>
- * Table Getway + Row Getway
- * </pre>
- * ==============================================
- * File encoding: UTF-8 
- * ----------------------------------------------
- * ActiveRow.php
- * ==============================================
- * @author YangDongqi <yangdongqi@gmail.com>
- * @copyright Copyright &copy; 2006-2012 Hayzone IT LTD.
- * @version $id$
- */
 abstract class Table extends \ci_ext\core\Model {
 	
 	/* 未实现 */
@@ -62,6 +46,9 @@ abstract class Table extends \ci_ext\core\Model {
 		$this->setIsNewRecord(true);
 		$this->init();
 		$this->attachBehaviors($this->behaviors());
+		foreach($this->defaultValues() as $k=>$v) {
+			$this->$k = $v;
+		}
 		$this->afterConstruct();
 	}
 	
@@ -85,6 +72,14 @@ abstract class Table extends \ci_ext\core\Model {
 	 * @return void
 	 */
 	public function init() {
+	}
+	
+	/**
+	 * 返回默认的属性值
+	 * @return array
+	 */
+	public function defaultValues() {
+		return array();
 	}
 	
 	/**
@@ -205,7 +200,7 @@ abstract class Table extends \ci_ext\core\Model {
 	 * @return mixed
 	 */
 	public function primaryKey() {
-		return $this->getDbConnection()->primary($this->tableName());
+		return 'id';
 	}
 	
 	/**
@@ -250,7 +245,7 @@ abstract class Table extends \ci_ext\core\Model {
 		if($this->beforeSave()) {
 			$builder=$this->getCommandBuilder();
 			$table=$this->tableName();
-			$sql=$builder->createInsertCommand($table, $this->getAttributes($attributes));
+			$sql=$builder->createInsertCommand($this, $this->getAttributes($attributes));
 			if($this->getDbConnection()->query($sql)) {
 				$pk = $this->primaryKey();
 				$this->$pk = $builder->getLastInsertID($table);
@@ -297,9 +292,8 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function updateByPk($pk,$attributes,$condition='',$params=array()) {
 		$builder=$this->getCommandBuilder();
-		$table=$this->tableName();
-		$criteria=$builder->createPkCriteria($table,$pk,$condition,$params);
-		$sql=$builder->createUpdateCommand($table,$attributes,$criteria);
+		$criteria=$builder->createPkCriteria($this,$pk,$condition,$params);
+		$sql=$builder->createUpdateCommand($this,$attributes,$criteria);
 		$this->getDbConnection()->simple_query($sql);
 		return $this->getDbConnection()->affected_rows();
 	}
@@ -315,7 +309,7 @@ abstract class Table extends \ci_ext\core\Model {
 	public function updateAll($attributes,$condition='',$params=array()) {
 		$builder=$this->getCommandBuilder();
 		$criteria=$builder->createCriteria($condition,$params);
-		$sql=$builder->createUpdateCommand($this->tableName(),$attributes,$criteria);
+		$sql=$builder->createUpdateCommand($this,$attributes,$criteria);
 		$this->getDbConnection()->simple_query($sql);
 		return $this->getDbConnection()->affected_rows();
 	}
@@ -338,7 +332,7 @@ abstract class Table extends \ci_ext\core\Model {
 	public function updateCounters($counters,$condition='',$params=array()) {
 		$builder=$this->getCommandBuilder();
 		$criteria=$builder->createCriteria($condition,$params);
-		$sql=$builder->createUpdateCounterCommand($this->tableName(),$counters,$criteria);
+		$sql=$builder->createUpdateCounterCommand($this,$counters,$criteria);
 		$this->getDbConnection()->simple_query($sql);
 		return $this->getDbConnection()->affected_rows();
 	}
@@ -379,8 +373,8 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function deleteByPk($pk,$condition='',$params=array()) {
 		$builder=$this->getCommandBuilder();
-		$criteria=$builder->createPkCriteria($this->tableName(),$pk,$condition,$params);
-		$sql=$builder->createDeleteCommand($this->tableName(),$criteria);
+		$criteria=$builder->createPkCriteria($this,$pk,$condition,$params);
+		$sql=$builder->createDeleteCommand($this,$criteria);
 		$this->getDbConnection()->simple_query($sql);
 		return $this->getDbConnection()->affected_rows();
 	}
@@ -397,7 +391,7 @@ abstract class Table extends \ci_ext\core\Model {
 	public function deleteAll($condition='',$params=array()) {
 		$builder=$this->getCommandBuilder();
 		$criteria=$builder->createCriteria($condition,$params);
-		$sql=$builder->createDeleteCommand($this->tableName(),$criteria);
+		$sql=$builder->createDeleteCommand($this,$criteria);
 		$this->getDbConnection()->simple_query($sql);
 		return $this->getDbConnection()->affected_rows();
 	}
@@ -413,8 +407,8 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function deleteAllByAttributes($attributes,$condition='',$params=array()) {
 		$builder=$this->getCommandBuilder();
-		$criteria=$builder->createColumnCriteria($this->tableName(),$attributes,$condition,$params);
-		$sql=$builder->createDeleteCommand($this->tableName(),$criteria);
+		$criteria=$builder->createColumnCriteria($this,$attributes,$condition,$params);
+		$sql=$builder->createDeleteCommand($this,$criteria);
 		$this->getDbConnection()->simple_query($sql);
 		return $this->getDbConnection()->affected_rows();
 	}
@@ -458,7 +452,7 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function findByPk($pk,$condition='',$params=array()) {
 		$prefix=$this->getTableAlias(true).'.';
-		$criteria=$this->getCommandBuilder()->createPkCriteria($this->tableName(),$pk,$condition,$params,$prefix);
+		$criteria=$this->getCommandBuilder()->createPkCriteria($this,$pk,$condition,$params,$prefix);
 		return $this->query($criteria);
 	}
 	
@@ -471,7 +465,7 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function findAllByPk($pk,$condition='',$params=array()) {
 		$prefix=$this->getTableAlias(true).'.';
-		$criteria=$this->getCommandBuilder()->createPkCriteria($this->tableName(),$pk,$condition,$params,$prefix);
+		$criteria=$this->getCommandBuilder()->createPkCriteria($this,$pk,$condition,$params,$prefix);
 		return $this->query($criteria,true);
 	}
 	
@@ -484,7 +478,7 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function findByAttributes($attributes,$condition='',$params=array()) {
 		$prefix=$this->getTableAlias(true).'.';
-		$criteria=$this->getCommandBuilder()->createColumnCriteria($this->tableName(),$attributes,$condition,$params,$prefix);
+		$criteria=$this->getCommandBuilder()->createColumnCriteria($this,$attributes,$condition,$params,$prefix);
 		return $this->query($criteria);
 	}
 	
@@ -497,7 +491,7 @@ abstract class Table extends \ci_ext\core\Model {
 	 */
 	public function findAllByAttributes($attributes,$condition='',$params=array()) {
 		$prefix=$this->getTableAlias(true).'.';
-		$criteria=$this->getCommandBuilder()->createColumnCriteria($this->tableName(),$attributes,$condition,$params,$prefix);
+		$criteria=$this->getCommandBuilder()->createColumnCriteria($this,$attributes,$condition,$params,$prefix);
 		return $this->query($criteria,true);
 	}
 	
@@ -536,7 +530,7 @@ abstract class Table extends \ci_ext\core\Model {
 		$builder=$this->getCommandBuilder();
 		$criteria=$builder->createCriteria($condition,$params);
 		$this->applyScopes($criteria);
-		$sql = $builder->createCountCommand($this->tableName(),$criteria);
+		$sql = $builder->createCountCommand($this,$criteria);
 		$result = $this->getDbConnection()->query($sql)->result('array');
 		return reset($result[0]);
 	}
@@ -551,9 +545,9 @@ abstract class Table extends \ci_ext\core\Model {
 	public function countByAttributes($attributes,$condition='',$params=array()) {
 		$prefix=$this->getTableAlias(true).'.';
 		$builder=$this->getCommandBuilder();
-		$criteria=$builder->createColumnCriteria($this->tableName(),$attributes,$condition,$params,$prefix);
+		$criteria=$builder->createColumnCriteria($this,$attributes,$condition,$params,$prefix);
 		$this->applyScopes($criteria);
-		$sql = $builder->createCountCommand($this->tableName(),$criteria);
+		$sql = $builder->createCountCommand($this,$criteria);
 		$result = $this->getDbConnection()->query($sql)->result('array');
 		return reset($result[0]);
 	}
@@ -582,7 +576,7 @@ abstract class Table extends \ci_ext\core\Model {
 		$criteria->select='1';
 		$criteria->limit=1;
 		$this->applyScopes($criteria);
-		$sql = $builder->createFindCommand($this->tableName(),$criteria);
+		$sql = $builder->createFindCommand($this,$criteria);
 		$result = $this->getDbConnection()->query($sql)->result('array');
 		return !empty($result);
 	}
@@ -599,7 +593,7 @@ abstract class Table extends \ci_ext\core\Model {
 		if(!$all) {
 			$criteria->limit=1;
 		}
-		$sql = $this->getCommandBuilder()->createFindCommand($this->tableName(),$criteria);
+		$sql = $this->getCommandBuilder()->createFindCommand($this,$criteria);
 		$result = $this->getDbConnection()->query($sql)->result('array');
 		return $all ? $this->populateRecords($result,true,$criteria->index) : $this->populateRecord($result?$result[0]:false);
 	}
