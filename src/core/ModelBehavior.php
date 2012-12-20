@@ -1,5 +1,6 @@
 <?php
 namespace ci_ext\core;
+use ci_ext\events\event;
 class ModelBehavior extends Behavior {
 	
 	public function events() {
@@ -14,7 +15,7 @@ class ModelBehavior extends Behavior {
 	 * @param ModelEvent $e
 	 * @return void
 	 */
-	public function beforeValidate(TableEvent $e) {
+	public function beforeValidate(ModelEvent $e) {
 	}
 	
 	/**
