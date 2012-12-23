@@ -32,11 +32,14 @@ class DataColumn extends GridColumn {
 	}
 	
 	protected function renderDataCellContent($row, $data) {
-		if ($this->value !== null)
+		if($this->value instanceof \Closure) {
+			echo call_user_func_array($this->value, array($this, $row, $data));
+			return;
+		} else if ($this->value !== null)
 			$value = $this->evaluateExpression ( $this->value, array ('data' => $data, 'row' => $row ) );
 		else if ($this->name !== null)
 			$value = Html::value ( $data, $this->name );
-		echo $value === null ? $this->grid->nullDisplay : $value;
+		echo $value === null ? $this->grid->nullDisplay : $this->grid->getFormatter()->format($value,$this->type);
 	}
 }
 
